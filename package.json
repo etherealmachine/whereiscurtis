@@ -7,7 +7,7 @@
 		"node": ">=18.17.0"
 	},
 	"scripts": {
-		"dev": "SPOT_FEED_ID=`cat .secrets` vite dev",
+		"dev": "DATABASE_URL='./development.sqlite3' SPOT_FEED_ID=`cat .secrets` vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",

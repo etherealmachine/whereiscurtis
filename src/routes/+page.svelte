@@ -22,9 +22,9 @@
 
     map.setView([37.7749, -122.4194], 13);
 
-    const response = await fetch('/spot');
-    const messages = await response.json() as SpotMessage[];
-    console.log(messages);
+    const response = await fetch('/api');
+    const { messages, lastApiRequestTime, fromCache } = await response.json() as { messages: SpotMessage[], lastApiRequestTime: number, fromCache: boolean };
+    console.log(`${messages.length} messages, lastApiRequestTime: ${lastApiRequestTime}, fromCache: ${fromCache}`);
     messages.sort((a, b) => a.unixTime - b.unixTime);
     let previousMessage: SpotMessage | undefined;
     for (const message of messages) {
