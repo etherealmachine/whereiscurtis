@@ -29,16 +29,16 @@
     let previousMessage: SpotMessage | undefined;
     for (const message of messages) {
       const { latitude, longitude, messageContent, messageType } = message;
-      const marker = L.marker([latitude, longitude]);
       if (messageType === 'CUSTOM') {
+        const marker = L.marker([latitude, longitude]);
         marker.bindTooltip(messageContent, {
           permanent: true,
           direction: 'top',
           offset: [-15, 0],
           className: 'marker-label',
         });
+        marker.addTo(map);
       }
-      marker.addTo(map);
       if (previousMessage) {
         L.polyline([[previousMessage.latitude, previousMessage.longitude], [latitude, longitude]]).addTo(map);
       }
