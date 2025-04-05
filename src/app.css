@@ -1,0 +1,42 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+input, select {
+  @apply px-4 py-2 rounded-md border border-gray-300;
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-md bg-gray-200 text-gray-800 transition-colors duration-200 hover:bg-gray-300;
+  }
+  .btn-primary {
+    @apply bg-blue-500 text-white hover:bg-blue-600;
+  }
+  .btn-primary.active {
+    @apply bg-blue-700 text-white hover:bg-blue-600;
+  }
+  .btn-secondary {
+    @apply bg-gray-500 text-white hover:bg-gray-600;
+  }
+  .btn-danger {
+    @apply bg-red-500 text-white hover:bg-red-600;
+  }
+  .btn:disabled {
+    @apply bg-gray-300 text-gray-500 cursor-not-allowed hover:bg-gray-300;
+  }
+  .btn-sm {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    margin: 0;
+  }
+}
