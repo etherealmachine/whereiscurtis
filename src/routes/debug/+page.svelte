@@ -10,6 +10,8 @@
   let showResetSection = $state(false);
   let downloadStatus = $state('');
   let downloadError = $state('');
+  let replayStatus = $state('');
+  let replayError = $state('');
 
   async function runSql() {
     if (!password) {
@@ -123,6 +125,26 @@
       downloadStatus = '';
     }
   }
+
+  async function replayLastRequest() {
+    if (!password) {
+      replayError = 'Please enter the debug password';
+      return;
+    }
+
+    try {
+      const response = await fetch(`/debug?password=${encodeURIComponent(password)}&replay=true`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result = await response.json();
+      replayStatus = result.message;
+      replayError = '';
+    } catch (error: unknown) {
+      replayError = error instanceof Error ? error.message : 'An unknown error occurred';
+      replayStatus = '';
+    }
+  }
 </script>
 
 <div class="debug-container">
@@ -169,6 +191,18 @@
     {/if}
     {#if downloadStatus}
       <div class="status">{downloadStatus}</div>
+    {/if}
+  </div>
+
+  <div class="section">
+    <h2>Replay Last Request</h2>
+    <p>Replay and reprocess the last SPOT API request</p>
+    <button onclick={replayLastRequest}>Replay Request</button>
+    {#if replayError}
+      <div class="error">{replayError}</div>
+    {/if}
+    {#if replayStatus}
+      <div class="status">{replayStatus}</div>
     {/if}
   </div>
 

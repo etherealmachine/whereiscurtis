@@ -161,6 +161,26 @@ export async function getLastApiRequestInfo(): Promise<{ time: number | null; st
   });
 }
 
+// Get the last API request and response
+export async function getLastApiRequest(): Promise<{ request: any; response: any } | null> {
+  const db = getDb();
+  return new Promise((resolve, reject) => {
+    db.get(`
+      SELECT request_json, response_json 
+      FROM api_requests 
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `, (err: Error | null, row: ApiRequestRow | undefined) => {
+      if (err) reject(err);
+      else if (!row) resolve(null);
+      else resolve({
+        request: JSON.parse(row.request_json),
+        response: JSON.parse(row.response_json)
+      });
+    });
+  });
+}
+
 // Store batch of events with deduplication
 export async function storeEvents(events: SpotMessage[]): Promise<void> {
   const db = getDb();

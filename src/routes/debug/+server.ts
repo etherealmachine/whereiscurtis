@@ -1,15 +1,40 @@
 import { env } from '$env/dynamic/private';
 import type { RequestEvent } from "@sveltejs/kit";
-import { dropTables, initializeDatabase, storeEvents } from '$lib/database';
+import { dropTables, initializeDatabase, storeEvents, getLastApiRequest } from '$lib/database';
 import { getDb } from '$lib/database';
 import type { SpotMessage } from '$lib/spot_api';
+import { parseSpotMessages } from '$lib/spot_api';
 
 export async function GET({ url }: RequestEvent): Promise<Response> {
   // Check for debug password
   if (!url.searchParams.get('password') || url.searchParams.get('password') !== env.DEBUG_PASSWORD) {
     return new Response('Unauthorized', { status: 401 });
   }
-  if (url.searchParams.get('sql')) {
+  if (url.searchParams.get('replay')) {
+    try {
+      const lastRequest = await getLastApiRequest();
+      if (!lastRequest) {
+        return new Response('No previous API request found', { status: 404 });
+      }
+
+      const messages = parseSpotMessages(lastRequest.response);
+
+      // Store the parsed messages
+      await storeEvents(messages);
+      return new Response(JSON.stringify({
+        message: `Successfully replayed and stored ${messages.length} messages`,
+        messages
+      }), { 
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+    } catch (error) {
+      console.error('Error replaying API request:', error);
+      return new Response('Error replaying API request', { status: 500 });
+    }
+  } else if (url.searchParams.get('sql')) {
     const sql = url.searchParams.get('sql');
     if (!sql) {
       return new Response('No SQL query provided', { status: 400 });
