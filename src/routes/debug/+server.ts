@@ -1,7 +1,7 @@
 import { env } from '$env/dynamic/private';
 import type { RequestEvent } from "@sveltejs/kit";
 import { dropTables, initializeDatabase, storeEvents } from '$lib/database';
-import { db } from '$lib/database';
+import { getDb } from '$lib/database';
 import type { SpotMessage } from '$lib/spot_api';
 
 export async function GET({ url }: RequestEvent): Promise<Response> {
@@ -14,6 +14,7 @@ export async function GET({ url }: RequestEvent): Promise<Response> {
     if (!sql) {
       return new Response('No SQL query provided', { status: 400 });
     }
+    const db = getDb();
     const result = db.all(sql);
     return new Response(JSON.stringify(result), { status: 200 });
   } else if (url.searchParams.get('reset-database')) {

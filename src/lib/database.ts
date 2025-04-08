@@ -42,12 +42,18 @@ interface EventRow {
   updated_at: string;
 }
 
-const db = new sqlite3.Database(env.DATABASE_URL as string);
+let _db: sqlite3.Database;
 
-export { db };
+export function getDb(): sqlite3.Database {
+  if (!_db) {
+    _db = new sqlite3.Database(env.DATABASE_URL as string);
+  }
+  return _db;
+}
 
 // Create tables if they don't exist
 export async function initializeDatabase(): Promise<void> {
+  const db = getDb();
   return new Promise((resolve, reject) => {
     db.serialize(() => {
       // API requests table to store raw requests/responses
@@ -89,6 +95,7 @@ export async function initializeDatabase(): Promise<void> {
 
 // Drop tables (for testing/reset)
 export async function dropTables(): Promise<void> {
+  const db = getDb();
   return new Promise((resolve, reject) => {
     db.serialize(() => {
       db.run('DROP TABLE IF EXISTS api_requests');
@@ -102,6 +109,7 @@ export async function dropTables(): Promise<void> {
 
 // Store API request/response
 export async function storeApiRequest(request: any, response: any): Promise<void> {
+  const db = getDb();
   return new Promise((resolve, reject) => {
     const stmt = db.prepare(`
       INSERT INTO api_requests (request_json, response_json, status_code)
@@ -136,6 +144,7 @@ export async function storeApiRequest(request: any, response: any): Promise<void
 
 // Get most recent API request time and status
 export async function getLastApiRequestInfo(): Promise<{ time: number | null; status: number | null }> {
+  const db = getDb();
   return new Promise((resolve, reject) => {
     db.get(`
       SELECT created_at, status_code 
@@ -154,6 +163,7 @@ export async function getLastApiRequestInfo(): Promise<{ time: number | null; st
 
 // Store batch of events with deduplication
 export async function storeEvents(events: SpotMessage[]): Promise<void> {
+  const db = getDb();
   return new Promise((resolve, reject) => {
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO events 
@@ -191,6 +201,7 @@ export async function getEvents(
   endTime?: number,
   limit: number = 100
 ): Promise<SpotMessage[]> {
+  const db = getDb();
   return new Promise((resolve, reject) => {
     let query = 'SELECT * FROM events';
     const params: any[] = [];
