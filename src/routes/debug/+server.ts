@@ -14,8 +14,9 @@ export async function GET({ url }: RequestEvent): Promise<Response> {
     if (!sql) {
       return new Response('No SQL query provided', { status: 400 });
     }
+    const decodedSql = decodeURIComponent(sql);
     const db = getDb();
-    const result = db.all(sql);
+    const result = db.all(decodedSql);
     return new Response(JSON.stringify(result), { status: 200 });
   } else if (url.searchParams.get('reset-database')) {
     try {
