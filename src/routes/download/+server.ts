@@ -1,10 +1,10 @@
-import { getEvents, getLastApiRequestTime, initializeDatabase, storeEvents } from "$lib/database";
+import { getEvents, getLastApiRequestInfo, initializeDatabase, storeEvents } from "$lib/database";
 import { latestSpotMessages, type SpotMessage } from "$lib/spot_api";
 import type { RequestEvent } from "@sveltejs/kit";
 
 export async function GET({ params }: RequestEvent): Promise<Response> {
   await initializeDatabase();
-  const lastApiRequestTime = await getLastApiRequestTime();
+  const { time: lastApiRequestTime, status: lastApiResponseStatus } = await getLastApiRequestInfo();
   let messages: SpotMessage[] = [];
   let fromCache = false;
   if (lastApiRequestTime === null || lastApiRequestTime < Date.now() - 5 * 60 * 1000) {
@@ -21,6 +21,7 @@ export async function GET({ params }: RequestEvent): Promise<Response> {
   return new Response(JSON.stringify({
     messages,
     lastApiRequestTime,
+    lastApiResponseStatus,
     fromCache,
   }), {
     headers: {

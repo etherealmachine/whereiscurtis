@@ -13,11 +13,20 @@ export interface SpotMessage {
 export async function latestSpotMessages(): Promise<SpotMessage[]> {
     const url = `https://api.findmespot.com/spot-main-web/consumer/rest-api/2.0/public/feed/${env.SPOT_FEED_ID}/message.json`;
     const response = await fetch(url);
-    const data = await response.json();
+    const statusCode = response.status;
     
     // Store the request and response in the database
-    await storeApiRequest({ url }, data);
+    await storeApiRequest({ 
+        url,
+        statusCode,
+        timestamp: Date.now()
+    }, await response.json());
     
+    if (!response.ok) {
+        throw new Error(`SPOT API request failed with status ${statusCode}`);
+    }
+    
+    const data = await response.json();
     return data.response.feedMessageResponse.messages.message.map((message: any) => {
       const { 
         id,

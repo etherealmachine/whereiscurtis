@@ -26,6 +26,7 @@ interface ApiRequestRow {
   id: number;
   request_json: string;
   response_json: string;
+  status_code: number;
   created_at: string;
   updated_at: string;
 }
@@ -43,6 +44,8 @@ interface EventRow {
 
 const db = new sqlite3.Database(env.DATABASE_URL as string);
 
+export { db };
+
 // Create tables if they don't exist
 export async function initializeDatabase(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -53,6 +56,7 @@ export async function initializeDatabase(): Promise<void> {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           request_json TEXT NOT NULL,
           response_json TEXT NOT NULL,
+          status_code INTEGER NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -100,13 +104,14 @@ export async function dropTables(): Promise<void> {
 export async function storeApiRequest(request: any, response: any): Promise<void> {
   return new Promise((resolve, reject) => {
     const stmt = db.prepare(`
-      INSERT INTO api_requests (request_json, response_json)
-      VALUES (?, ?)
+      INSERT INTO api_requests (request_json, response_json, status_code)
+      VALUES (?, ?, ?)
     `);
     
     stmt.run(
       JSON.stringify(request),
       JSON.stringify(response),
+      request.statusCode,
       (err: Error | null) => {
         if (err) reject(err);
         else {
@@ -129,17 +134,20 @@ export async function storeApiRequest(request: any, response: any): Promise<void
   });
 }
 
-// Get most recent API request time
-export async function getLastApiRequestTime(): Promise<number | null> {
+// Get most recent API request time and status
+export async function getLastApiRequestInfo(): Promise<{ time: number | null; status: number | null }> {
   return new Promise((resolve, reject) => {
     db.get(`
-      SELECT created_at 
+      SELECT created_at, status_code 
       FROM api_requests 
       ORDER BY created_at DESC 
       LIMIT 1
     `, (err: Error | null, row: ApiRequestRow | undefined) => {
       if (err) reject(err);
-      else resolve(row ? new Date(row.created_at).getTime() : null);
+      else resolve({
+        time: row ? new Date(row.created_at + 'Z').getTime() : null,
+        status: row ? row.status_code : null
+      });
     });
   });
 }
