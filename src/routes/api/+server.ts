@@ -11,6 +11,7 @@ export async function GET({ params }: RequestEvent): Promise<Response> {
   if (lastApiRequestTime === null || lastApiRequestTime < Date.now() - 5 * 60 * 1000) {
     console.log('Fetching latest messages');
     messages = await latestSpotMessages();
+    console.log(`Storing ${messages.length} messages`);
     await storeEvents(messages);
   } else {
     messages = await getEvents();

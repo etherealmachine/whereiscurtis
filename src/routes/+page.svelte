@@ -45,7 +45,7 @@
       
       const prevDate = new Date(prev.unixTime * 1000);
       const currDate = new Date(curr.unixTime * 1000);
-      if (prevDate.getDay() !== currDate.getDay()) {
+      if (!isSameDay(prevDate, currDate)) {
         result.push(currentGroup);
         currentGroup = [curr];
       } else {
