@@ -1,8 +1,26 @@
 import { latestSpotMessages } from '$lib/spot_api';
 import { sendEmail } from '$lib/email';
+import { getLastBackupTime, storeBackupAttempt } from '$lib/database';
+
+const BACKUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 export async function GET(): Promise<Response> {
   try {
+    const lastBackupTime = await getLastBackupTime();
+    const now = Date.now();
+    
+    if (lastBackupTime && (now - lastBackupTime) < BACKUP_INTERVAL_MS) {
+      return new Response(JSON.stringify({
+        message: 'Backup skipped - too soon since last backup',
+        lastBackupTime: new Date(lastBackupTime).toISOString()
+      }), { 
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+
     const messages = await latestSpotMessages();
     const jsonString = JSON.stringify(messages, null, 2);
     
@@ -16,6 +34,9 @@ export async function GET(): Promise<Response> {
         content: jsonString
       }]
     );
+
+    // Record successful backup
+    await storeBackupAttempt();
     
     return new Response(JSON.stringify({
       message: `Successfully backed up ${messages.length} messages`,
@@ -28,6 +49,8 @@ export async function GET(): Promise<Response> {
     });
   } catch (error) {
     console.error('Error during backup:', error);
+    // Record failed backup
+    await storeBackupAttempt(error instanceof Error ? error.message : String(error));
     return new Response('Error during backup', { status: 500 });
   }
 }

@@ -28,7 +28,6 @@ interface ApiRequestRow {
   response_json: string;
   status_code: number;
   created_at: string;
-  updated_at: string;
 }
 
 interface EventRow {
@@ -39,7 +38,6 @@ interface EventRow {
   latitude: number;
   longitude: number;
   created_at: string;
-  updated_at: string;
 }
 
 let _db: sqlite3.Database;
@@ -64,7 +62,6 @@ export async function initializeDatabase(): Promise<void> {
           response_json TEXT NOT NULL,
           status_code INTEGER NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
 
@@ -78,7 +75,6 @@ export async function initializeDatabase(): Promise<void> {
           latitude REAL NOT NULL,
           longitude REAL NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
 
@@ -87,7 +83,19 @@ export async function initializeDatabase(): Promise<void> {
         CREATE INDEX IF NOT EXISTS idx_events_unix_time ON events(unix_time)
       `, (err) => {
         if (err) reject(err);
-        else resolve();
+        else {
+          // Backup attempts table to track backup history
+          db.run(`
+            CREATE TABLE IF NOT EXISTS backup_attempts (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              error TEXT,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `, (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        }
       });
     });
   });
@@ -257,6 +265,39 @@ export async function getEvents(
         }));
         resolve(events);
       }
+    });
+  });
+}
+
+// Store a backup attempt
+export async function storeBackupAttempt(error?: string): Promise<void> {
+  const db = getDb();
+  return new Promise((resolve, reject) => {
+    const stmt = db.prepare(`
+      INSERT INTO backup_attempts (error)
+      VALUES (?)
+    `);
+    
+    stmt.run(error || null, (err: Error | null) => {
+      if (err) reject(err);
+      else resolve();
+    });
+    stmt.finalize();
+  });
+}
+
+// Get the last backup attempt time
+export async function getLastBackupTime(): Promise<number | null> {
+  const db = getDb();
+  return new Promise((resolve, reject) => {
+    db.get(`
+      SELECT created_at 
+      FROM backup_attempts 
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `, (err: Error | null, row: { created_at: string } | undefined) => {
+      if (err) reject(err);
+      else resolve(row ? new Date(row.created_at + 'Z').getTime() : null);
     });
   });
 }
