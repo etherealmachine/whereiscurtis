@@ -30,7 +30,7 @@ primary_region = 'sjc'
   cpus = 1
 
 [[http_service.checks]]
-  grace_period = "60s"
+  grace_period = "5m"
   interval = "60m"
   method = "GET"
   timeout = "60s"
