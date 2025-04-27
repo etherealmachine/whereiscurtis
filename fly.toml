@@ -28,3 +28,7 @@ primary_region = 'sjc'
   memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
+
+[[schedules]]
+  schedule = "0 * * * *"  # Run every hour
+  command = "curl -X POST https://whereiscurtis.fly.io/api"
