@@ -49,56 +49,69 @@ export function getDb(): sqlite3.Database {
   return _db;
 }
 
+// SQL statements for table creation
+const CREATE_API_REQUESTS_TABLE = `
+  CREATE TABLE IF NOT EXISTS api_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_json TEXT NOT NULL,
+    response_json TEXT NOT NULL,
+    status_code INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`;
+
+const CREATE_EVENTS_TABLE = `
+  CREATE TABLE IF NOT EXISTS events (
+    id TEXT PRIMARY KEY,
+    message_type TEXT NOT NULL,
+    message_content TEXT,
+    unix_time INTEGER NOT NULL,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`;
+
+const CREATE_EVENTS_INDEX = `
+  CREATE INDEX IF NOT EXISTS idx_events_unix_time ON events(unix_time)
+`;
+
+const CREATE_BACKUP_ATTEMPTS_TABLE = `
+  CREATE TABLE IF NOT EXISTS backup_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    error TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`;
+
+// Helper function to run a single SQL statement
+function runSql(db: sqlite3.Database, sql: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    db.run(sql, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+}
+
 // Create tables if they don't exist
 export async function initializeDatabase(): Promise<void> {
   const db = getDb();
-  return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      // API requests table to store raw requests/responses
-      db.run(`
-        CREATE TABLE IF NOT EXISTS api_requests (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          request_json TEXT NOT NULL,
-          response_json TEXT NOT NULL,
-          status_code INTEGER NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        )
-      `);
+  
+  try {
+    // Create all tables independently
+    await Promise.all([
+      runSql(db, CREATE_API_REQUESTS_TABLE),
+      runSql(db, CREATE_EVENTS_TABLE),
+      runSql(db, CREATE_BACKUP_ATTEMPTS_TABLE)
+    ]);
 
-      // Events table to store parsed Spot messages
-      db.run(`
-        CREATE TABLE IF NOT EXISTS events (
-          id TEXT PRIMARY KEY,
-          message_type TEXT NOT NULL,
-          message_content TEXT,
-          unix_time INTEGER NOT NULL,
-          latitude REAL NOT NULL,
-          longitude REAL NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        )
-      `);
-
-      // Create index on unix_time for efficient time-based queries
-      db.run(`
-        CREATE INDEX IF NOT EXISTS idx_events_unix_time ON events(unix_time)
-      `, (err) => {
-        if (err) reject(err);
-        else {
-          // Backup attempts table to track backup history
-          db.run(`
-            CREATE TABLE IF NOT EXISTS backup_attempts (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              error TEXT,
-              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-          `, (err) => {
-            if (err) reject(err);
-            else resolve();
-          });
-        }
-      });
-    });
-  });
+    // Create index after events table is created
+    await runSql(db, CREATE_EVENTS_INDEX);
+  } catch (error) {
+    console.error('Error initializing database:', error);
+    throw error;
+  }
 }
 
 // Drop tables (for testing/reset)
@@ -107,7 +120,8 @@ export async function dropTables(): Promise<void> {
   return new Promise((resolve, reject) => {
     db.serialize(() => {
       db.run('DROP TABLE IF EXISTS api_requests');
-      db.run('DROP TABLE IF EXISTS events', (err) => {
+      db.run('DROP TABLE IF EXISTS events');
+      db.run('DROP TABLE IF EXISTS backup_attempts', (err) => {
         if (err) reject(err);
         else resolve();
       });
