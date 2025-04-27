@@ -29,6 +29,9 @@ primary_region = 'sjc'
   cpu_kind = 'shared'
   cpus = 1
 
-[[schedules]]
-  schedule = "0 * * * *"  # Run every hour
-  command = "curl -X POST https://whereiscurtis.fly.io/backup"
+[[http_service.checks]]
+  grace_period = "60s"
+  interval = "60m"
+  method = "GET"
+  timeout = "60s"
+  path = "/backup"
