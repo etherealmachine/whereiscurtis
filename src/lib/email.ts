@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 import { env } from "$env/dynamic/private";
 
 export async function sendEmail(
-  to: string, 
+  to: string[], 
   subject: string, 
   text: string, 
   html?: string,

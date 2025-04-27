@@ -7,7 +7,7 @@ export async function GET(): Promise<Response> {
     const jsonString = JSON.stringify(messages, null, 2);
     
     await sendEmail(
-      'etherealmachine@gmail.com',
+      ['etherealmachine@gmail.com', 'curtiskephart@gmail.com'],
       'Spot Messages Backup',
       'Please find attached the latest backup of Spot messages.',
       '<p>Please find attached the latest backup of Spot messages.</p>',
