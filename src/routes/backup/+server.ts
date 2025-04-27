@@ -1,11 +1,12 @@
 import { latestSpotMessages } from '$lib/spot_api';
 import { sendEmail } from '$lib/email';
-import { getLastBackupTime, storeBackupAttempt } from '$lib/database';
+import { getLastBackupTime, initializeDatabase, storeBackupAttempt } from '$lib/database';
 
 const BACKUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 export async function GET(): Promise<Response> {
   try {
+    await initializeDatabase();
     const lastBackupTime = await getLastBackupTime();
     const now = Date.now();
     
