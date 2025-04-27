@@ -1,8 +1,7 @@
 import { getEvents, getLastApiRequestInfo, initializeDatabase, storeEvents } from "$lib/database";
 import { latestSpotMessages, type SpotMessage } from "$lib/spot_api";
-import type { RequestEvent } from "@sveltejs/kit";
 
-export async function GET({ params }: RequestEvent): Promise<Response> {
+export async function GET(): Promise<Response> {
   await initializeDatabase();
   const { time: lastApiRequestTime, status: lastApiResponseStatus } = await getLastApiRequestInfo();
   let messages: SpotMessage[] = [];
