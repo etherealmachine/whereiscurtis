@@ -31,4 +31,4 @@ primary_region = 'sjc'
 
 [[schedules]]
   schedule = "0 * * * *"  # Run every hour
-  command = "curl -X POST https://whereiscurtis.fly.io/api"
+  command = "curl -X POST https://whereiscurtis.fly.io/backup"
