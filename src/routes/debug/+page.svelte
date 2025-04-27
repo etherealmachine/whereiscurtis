@@ -25,12 +25,14 @@
 
     try {
       const response = await fetch(`/debug?password=${encodeURIComponent(password)}&sql=${encodeURIComponent(sqlQuery)}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
       const result = await response.json();
-      sqlResult = JSON.stringify(result, null, 2);
-      sqlError = '';
+      if (!response.ok) {
+        sqlResult = '';
+        sqlError = result.error;
+      } else {
+        sqlResult = JSON.stringify(result, null, 2);
+        sqlError = '';
+      }
     } catch (error: unknown) {
       sqlError = error instanceof Error ? error.message : 'An unknown error occurred';
       sqlResult = '';
