@@ -294,7 +294,20 @@ export async function storeBackupAttempt(error?: string): Promise<void> {
     
     stmt.run(error || null, (err: Error | null) => {
       if (err) reject(err);
-      else resolve();
+      else {
+        // Delete all but the most recent backup attempt
+        db.run(`
+          DELETE FROM backup_attempts 
+          WHERE id NOT IN (
+            SELECT id FROM backup_attempts 
+            ORDER BY created_at DESC 
+            LIMIT 1
+          )
+        `, (err: Error | null) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      }
     });
     stmt.finalize();
   });
