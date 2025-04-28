@@ -30,8 +30,9 @@ primary_region = 'sjc'
   cpus = 1
 
 [[http_service.checks]]
-  grace_period = "5m"
-  interval = "10m"
+  grace_period = "10s"
+  interval = "1m0s"
   method = "GET"
-  timeout = "5m"
+  timeout = "60s"
   path = "/backup"
+  protocol = "https"
