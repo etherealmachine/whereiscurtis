@@ -5,6 +5,7 @@ import { getLastBackupTime, initializeDatabase, storeBackupAttempt } from '$lib/
 const BACKUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 export async function GET(): Promise<Response> {
+  console.log('Starting backup');
   try {
     await initializeDatabase();
     const lastBackupTime = await getLastBackupTime();
