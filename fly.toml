@@ -20,6 +20,16 @@ primary_region = 'sjc'
   min_machines_running = 0
   processes = ['app']
 
+[checks]
+  [checks.backup]
+    grace_period = "30s"
+    interval = "1m"
+    method = "get"
+    path = "/backup"
+    port = 3000
+    timeout = "60s"
+    type = "http"
+
 [[mounts]]
   destination = "/mnt/volume"
   source = "sqlite3_volume"
@@ -28,11 +38,3 @@ primary_region = 'sjc'
   memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
-
-[[http_service.checks]]
-  grace_period = "10s"
-  interval = "10m"
-  method = "GET"
-  timeout = "60s"
-  path = "/"
-  protocol = "https"
