@@ -2,19 +2,48 @@ import { latestSpotMessages } from '$lib/spot_api';
 import { sendEmail } from '$lib/email';
 import { getLastBackupTime, initializeDatabase, storeBackupAttempt } from '$lib/database';
 
-const BACKUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+function isWithinBackupWindow(): boolean {
+  // Get current time in Pacific Time
+  const now = new Date();
+  const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+  
+  // Check if it's between 10 AM and 12 PM Pacific Time
+  const hour = pacificTime.getHours();
+  return hour >= 10 && hour < 12;
+}
 
 export async function GET(): Promise<Response> {
   console.log('Starting backup');
   try {
     await initializeDatabase();
     const lastBackupTime = await getLastBackupTime();
-    const now = Date.now();
+    const now = new Date();
     
-    if (lastBackupTime && (now - lastBackupTime) < BACKUP_INTERVAL_MS) {
+    // Convert last backup time to Pacific Time for comparison
+    const lastBackupDate = lastBackupTime ? new Date(lastBackupTime) : null;
+    const lastBackupPacific = lastBackupDate ? new Date(lastBackupDate.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })) : null;
+    
+    // Check if we've already backed up today
+    if (lastBackupPacific && 
+        lastBackupPacific.getDate() === now.getDate() && 
+        lastBackupPacific.getMonth() === now.getMonth() && 
+        lastBackupPacific.getFullYear() === now.getFullYear()) {
       return new Response(JSON.stringify({
-        message: 'Backup skipped - too soon since last backup',
-        lastBackupTime: new Date(lastBackupTime).toISOString()
+        message: 'Backup skipped - already backed up today',
+        lastBackupTime: lastBackupDate?.toISOString()
+      }), { 
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+
+    // Check if we're within the backup window
+    if (!isWithinBackupWindow()) {
+      return new Response(JSON.stringify({
+        message: 'Backup skipped - outside backup window (10-12 AM Pacific Time)',
+        currentTime: now.toISOString()
       }), { 
         status: 200,
         headers: {
