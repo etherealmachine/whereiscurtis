@@ -28,11 +28,3 @@ primary_region = 'sjc'
   memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
-
-[[http_service.checks]]
-  grace_period = "10s"
-  interval = "1m0s"
-  method = "GET"
-  timeout = "60s"
-  path = "/backup"
-  protocol = "https"
