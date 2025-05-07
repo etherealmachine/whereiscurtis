@@ -386,7 +386,7 @@
         <span class="value">{tripMetrics.totalDistance.toFixed(1)} mi</span>
       </div>
       <div class="metric">
-        <span class="label">Avg Speed</span>
+        <span class="label">Speed</span>
         <span class="value">{tripMetrics.mph.toFixed(1)} mph</span>
       </div>
     {/if}
@@ -445,6 +445,10 @@
   }
   
   #date-selector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
     position: absolute;
     top: 8px;
     left: 50%;
@@ -454,6 +458,7 @@
     padding: 10px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    min-width: max-content;
   }
 
   .month {
@@ -461,11 +466,13 @@
     font-size: 18px;
     font-weight: bold;
     margin-bottom: 8px;
+    white-space: nowrap;
   }
 
   .days {
     display: flex;
     gap: 4px;
+    flex-wrap: nowrap;
   }
 
   .nav-button {
@@ -479,7 +486,7 @@
     background: white;
     cursor: pointer;
     font-size: 14px;
-    min-width: 80px;
+    white-space: nowrap;
   }
 
   .nav-button.selected {
@@ -604,9 +611,9 @@
 
   .trip-metrics {
     display: flex;
-    justify-content: space-evenly;
+    justify-content: space-around;
     gap: 16px;
-    margin-top: 8px;
+    margin: 8px 16px 0 16px;
     padding-top: 8px;
     border-top: 1px solid #eee;
   }
@@ -626,5 +633,34 @@
   .metric .value {
     font-weight: bold;
     color: #333;
+  }
+
+  @media (max-width: 768px) {
+    .nav-button {
+      padding: 6px 8px;
+      font-size: 12px;
+    }
+
+    .days {
+      gap: 2px;
+    }
+
+    .month {
+      font-size: 16px;
+    }
+
+    .trip-metrics {
+      gap: 8px;
+      margin-top: 4px;
+      padding-top: 4px;
+    }
+
+    .metric .label {
+      font-size: 10px;
+    }
+
+    .metric .value {
+      font-size: 12px;
+    }
   }
 </style>
