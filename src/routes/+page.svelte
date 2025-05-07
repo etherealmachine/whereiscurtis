@@ -88,8 +88,6 @@
       }).addTo(map);
     }
 
-    let previousMessage: SpotMessage | undefined;
-    
     // Group messages by hour and find the one closest to the hour mark, only considering messages in first 30 minutes
     const messagesByHour = new Map<number, SpotMessage>();
     selectedMessages.forEach(message => {
@@ -113,9 +111,10 @@
       }
     });
 
+    let previousMessage: SpotMessage | undefined;
     const filteredMessages = selectedMessages.filter((message, index) => {
       // Always include first and last messages
-      if (index === 0 || index === messages.length - 1) return true;
+      if (index === 0 || index === selectedMessages.length - 1) return true;
       
       // Include messages with non-empty content
       if (message.messageContent) return true;
