@@ -3,7 +3,7 @@ import { latestSpotMessages, type SpotMessage } from "$lib/spot_api";
 
 export async function GET(): Promise<Response> {
   await initializeDatabase();
-  const { time: lastApiRequestTime, status: lastApiResponseStatus } = await getLastApiRequestInfo();
+  let { time: lastApiRequestTime, status: lastApiResponseStatus } = await getLastApiRequestInfo();
   let messages: SpotMessage[] = [];
   let fromCache = false;
   
@@ -12,6 +12,7 @@ export async function GET(): Promise<Response> {
     messages = await latestSpotMessages();
     console.log(`Storing ${messages.length} messages`);
     await storeEvents(messages);
+    ({ time: lastApiRequestTime, status: lastApiResponseStatus } = await getLastApiRequestInfo());
   } else {
     messages = await getEvents();
     fromCache = true;
