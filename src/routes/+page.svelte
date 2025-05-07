@@ -19,6 +19,8 @@
   let lastApiRequestTime: number | null = $state(null);
   let lastApiResponseStatus: number | null = $state(null);
   let fromCache = $state(false);
+  let showTrail = $state(localStorage.getItem('showTrail') === 'true');
+  let trailData: any[] | undefined = $state(undefined);
 
   function formatDate(date: Date): string {
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -69,7 +71,7 @@
     });
   }
 
-  function addMessagesToMap(messages: SpotMessage[]) {
+  function renderMap() {
     if (!map) return;
     // Clear existing markers and polylines
     map.eachLayer((layer) => {
@@ -78,11 +80,19 @@
       }
     });
 
+    if (showTrail && trailData) {
+      L.geoJSON(trailData, {
+        style: {
+          color: '#0078d4bb', // TODO: light blue with some opacity
+        }
+      }).addTo(map);
+    }
+
     let previousMessage: SpotMessage | undefined;
     
     // Group messages by hour and find the one closest to the hour mark, only considering messages in first 30 minutes
     const messagesByHour = new Map<number, SpotMessage>();
-    messages.forEach(message => {
+    selectedMessages.forEach(message => {
       const date = new Date(message.unixTime * 1000);
       const hour = date.getHours();
       const minutes = date.getMinutes();
@@ -103,7 +113,7 @@
       }
     });
 
-    const filteredMessages = messages.filter((message, index) => {
+    const filteredMessages = selectedMessages.filter((message, index) => {
       // Always include first and last messages
       if (index === 0 || index === messages.length - 1) return true;
       
@@ -116,8 +126,8 @@
       return messagesByHour.get(hour) === message;
     });
 
-    for (const [i, message] of filteredMessages.entries()) {
-      const { latitude, longitude, messageContent, messageType, unixTime } = message;
+    for (const message of filteredMessages) {
+      const { latitude, longitude, messageContent, unixTime } = message;
       const marker = L.marker([latitude, longitude]);
       const formattedDate = formatUnitTime(unixTime);
       const tooltip = marker.bindTooltip(`${formattedDate}${messageContent ? ': ' + messageContent : ''}`, {
@@ -273,11 +283,23 @@
     return `${minutes}m`;
   }
 
-  $effect(() => {
-    if (selectedMessages.length > 0) {
-      fitBoundsToMessages(selectedMessages);
+  function loadTrailData() {
+    if (showTrail && trailData === undefined) {
+      fetch('/pct.json')
+        .then(res => res.json())
+        .then(data => {
+          trailData = data;
+        });
     }
-    addMessagesToMap(selectedMessages);
+    localStorage.setItem('showTrail', showTrail.toString());
+  }
+
+  $effect(() => {
+    renderMap();
+  });
+
+  $effect(() => {
+    loadTrailData();
   });
 
   onMount(async () => {
@@ -322,110 +344,116 @@
   });
 </script>
 
-<div id="date-selector">
-  <div class="month">{formatDate(selectedDay)}</div>
-  <div class="days">
+<div id="date-selector" class="flex flex-col items-center gap-1 absolute top-2 left-1/2 -translate-x-1/2 z-[100] bg-white p-2.5 rounded-lg shadow-sm min-w-max">
+  <div class="flex flex-row w-full items-center justify-between relative">
+    <div class="flex-1 text-center text-lg font-bold mb-2 whitespace-nowrap">{formatDate(selectedDay)}</div>
+    <div class="flex flex-row items-center gap-2 absolute right-0">
+      <label for="show-trail">Trail</label>
+      <input type="checkbox" id="show-trail" bind:checked={showTrail} onclick={loadTrailData} />
+    </div>
+  </div>
+  <div class="flex gap-1 flex-nowrap">
     <button 
-      class="nav-button" 
+      class="flex items-center justify-center gap-1 px-3 py-2 border border-gray-200 rounded bg-white cursor-pointer text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" 
       onclick={navigateToFirstDay} 
       title="Go to first message"
       disabled={!hasMessagesBefore(selectedDay)}
     >
-      <span class="icon">⏮</span>
+      <span class="text-base">⏮</span>
     </button>
     <button 
-      class="nav-button" 
+      class="flex items-center justify-center gap-1 px-3 py-2 border border-gray-200 rounded bg-white cursor-pointer text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" 
       onclick={navigateToPreviousDay} 
       title="Previous day"
       disabled={!hasMessagesBefore(selectedDay)}
     >
-      <span class="icon">←</span>
-      <span class="date">{formatDay(getPreviousDay(selectedDay))}</span>
+      <span class="text-base">←</span>
+      <span class="whitespace-nowrap">{formatDay(getPreviousDay(selectedDay))}</span>
     </button>
     <button
-      class="nav-button selected"
+      class="flex items-center justify-center gap-1 px-3 py-2 border border-[#0078d4] rounded bg-[#0078d4] text-white cursor-pointer text-sm whitespace-nowrap hover:bg-[#006cbd]"
       title="Current day"
       onclick={() => updateSelectedDay(selectedDay)}
     >
-      <span class="date">{formatDay(selectedDay)}</span>
+      <span class="whitespace-nowrap">{formatDay(selectedDay)}</span>
     </button>
     <button 
-      class="nav-button" 
+      class="flex items-center justify-center gap-1 px-3 py-2 border border-gray-200 rounded bg-white cursor-pointer text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" 
       onclick={navigateToNextDay} 
       title="Next day"
       disabled={getNextDay(selectedDay) >= new Date()}
     >
-      <span class="date">{formatDay(getNextDay(selectedDay))}</span>
-      <span class="icon">→</span>
+      <span class="whitespace-nowrap">{formatDay(getNextDay(selectedDay))}</span>
+      <span class="text-base">→</span>
     </button>
     <button 
-      class="nav-button" 
+      class="flex items-center justify-center gap-1 px-3 py-2 border border-gray-200 rounded bg-white cursor-pointer text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" 
       onclick={navigateToToday} 
       title="Go to today"
       disabled={getNextDay(selectedDay) >= new Date()}
     >
-      <span class="icon">⏭</span>
+      <span class="text-base">⏭</span>
     </button>
   </div>
-  <div class="trip-metrics">
+  <div class="flex justify-around gap-4 mx-4 mt-2 pt-2 border-t border-gray-200">
     {#if tripMetrics}
-      <div class="metric">
-        <span class="label">Start</span>
-        <span class="value">{formatUnitTime(tripMetrics.startTime)}</span>
+      <div class="flex flex-col items-center gap-0.5">
+        <span class="text-xs text-gray-600 font-bold">Start</span>
+        <span class="font-bold text-gray-800">{formatUnitTime(tripMetrics.startTime)}</span>
       </div>
-      <div class="metric">
-        <span class="label">End</span>
-        <span class="value">{formatUnitTime(tripMetrics.endTime)}</span>
+      <div class="flex flex-col items-center gap-0.5">
+        <span class="text-xs text-gray-600 font-bold">End</span>
+        <span class="font-bold text-gray-800">{formatUnitTime(tripMetrics.endTime)}</span>
       </div>
-      <div class="metric">
-        <span class="label">Duration</span>
-        <span class="value">{formatDuration(tripMetrics.durationSeconds)}</span>
+      <div class="flex flex-col items-center gap-0.5">
+        <span class="text-xs text-gray-600 font-bold">Duration</span>
+        <span class="font-bold text-gray-800">{formatDuration(tripMetrics.durationSeconds)}</span>
       </div>
-      <div class="metric">
-        <span class="label">Distance</span>
-        <span class="value">{tripMetrics.totalDistance.toFixed(1)} mi</span>
+      <div class="flex flex-col items-center gap-0.5">
+        <span class="text-xs text-gray-600 font-bold">Distance</span>
+        <span class="font-bold text-gray-800">{tripMetrics.totalDistance.toFixed(1)} mi</span>
       </div>
-      <div class="metric">
-        <span class="label">Speed</span>
-        <span class="value">{tripMetrics.mph.toFixed(1)} mph</span>
+      <div class="flex flex-col items-center gap-0.5">
+        <span class="text-xs text-gray-600 font-bold">Speed</span>
+        <span class="font-bold text-gray-800">{tripMetrics.mph.toFixed(1)} mph</span>
       </div>
     {/if}
   </div>
 </div>
 
-<div id="status">
+<div id="status" class="absolute top-2 right-2 z-[100]">
   <button 
-    class="status-indicator" 
+    class="relative cursor-pointer" 
     class:show-debug={showDebugWindow} 
     onclick={() => showDebugWindow = !showDebugWindow}
     aria-label="Toggle debug information"
     aria-expanded={showDebugWindow}
   >
-    <div class="status-circle" class:green={getStatusColor() === 'green'} class:yellow={getStatusColor() === 'yellow'} class:red={getStatusColor() === 'red'}></div>
+    <div class="w-4 h-4 rounded-full border-2 border-white shadow-sm" class:green={getStatusColor() === 'green'} class:yellow={getStatusColor() === 'yellow'} class:red={getStatusColor() === 'red'}></div>
     {#if showDebugWindow}
-      <div class="debug-window">
-        <div class="debug-row">
-          <span class="label">Messages:</span>
-          <span class="value">{messages.length}</span>
+      <div class="absolute top-6 right-0 bg-white p-3 rounded-lg shadow-md min-w-[200px]">
+        <div class="flex justify-between mb-2">
+          <span class="font-bold mr-2">Messages:</span>
+          <span class="text-gray-600">{messages.length}</span>
         </div>
-        <div class="debug-row">
-          <span class="label">Last API Request:</span>
-          <span class="value">{formatTimeAgo(lastApiRequestTime)}</span>
+        <div class="flex justify-between mb-2">
+          <span class="font-bold mr-2">Last API Request:</span>
+          <span class="text-gray-600">{formatTimeAgo(lastApiRequestTime)}</span>
         </div>
-        <div class="debug-row">
-          <span class="label">Last API Status:</span>
-          <span class="value">{lastApiResponseStatus || 'Unknown'}</span>
+        <div class="flex justify-between mb-2">
+          <span class="font-bold mr-2">Last API Status:</span>
+          <span class="text-gray-600">{lastApiResponseStatus || 'Unknown'}</span>
         </div>
-        <div class="debug-row">
-          <span class="label">From Cache:</span>
-          <span class="value">{fromCache ? 'Yes' : 'No'}</span>
+        <div class="flex justify-between">
+          <span class="font-bold mr-2">From Cache:</span>
+          <span class="text-gray-600">{fromCache ? 'Yes' : 'No'}</span>
         </div>
       </div>
     {/if}
   </button>
 </div>
 
-<div id="map"></div>
+<div id="map" class="flex-1 w-screen h-screen z-0"></div>
 
 <style>
   :global(body) {
@@ -435,87 +463,6 @@
     margin: 0;
     padding: 0;
     font-size: 14px;
-  }
-
-  #status {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    z-index: 100;
-  }
-  
-  #date-selector {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    position: absolute;
-    top: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 100;
-    background: white;
-    padding: 10px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    min-width: max-content;
-  }
-
-  .month {
-    text-align: center;
-    font-size: 18px;
-    font-weight: bold;
-    margin-bottom: 8px;
-    white-space: nowrap;
-  }
-
-  .days {
-    display: flex;
-    gap: 4px;
-    flex-wrap: nowrap;
-  }
-
-  .nav-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background: white;
-    cursor: pointer;
-    font-size: 14px;
-    white-space: nowrap;
-  }
-
-  .nav-button.selected {
-    background: #0078d4;
-    color: white;
-    border-color: #0078d4;
-  }
-
-  .nav-button:hover {
-    background: #f0f0f0;
-  }
-
-  .nav-button.selected:hover {
-    background: #006cbd;
-  }
-
-  .icon {
-    font-size: 16px;
-  }
-
-  .date {
-    white-space: nowrap;
-  }
-
-  #map {
-    flex: 1;
-    width: 100vw;
-    height: 100vh;
-    z-index: 0;
   }
 
   :global(.marker-label) {
@@ -541,126 +488,19 @@
     display: none;
   }
 
-  .nav-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .nav-button:disabled:hover {
-    background: white;
-  }
-
   :global(.transparent-marker) {
     display: none;
   }
-
-  .status-indicator {
-    position: relative;
-    cursor: pointer;
-  }
-
-  .status-circle {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 2px solid white;
-    box-shadow: 0 0 4px rgba(0,0,0,0.2);
-  }
-
-  .status-circle.green {
+  
+  .green {
     background-color: #4CAF50;
   }
 
-  .status-circle.yellow {
+  .yellow {
     background-color: #FFC107;
   }
 
-  .status-circle.red {
+  .red {
     background-color: #F44336;
-  }
-
-  .debug-window {
-    position: absolute;
-    top: 24px;
-    right: 0;
-    background: white;
-    padding: 12px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    min-width: 200px;
-  }
-
-  .debug-row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 8px;
-  }
-
-  .debug-row:last-child {
-    margin-bottom: 0;
-  }
-
-  .label {
-    font-weight: bold;
-    margin-right: 8px;
-  }
-
-  .value {
-    color: #666;
-  }
-
-  .trip-metrics {
-    display: flex;
-    justify-content: space-around;
-    gap: 16px;
-    margin: 8px 16px 0 16px;
-    padding-top: 8px;
-    border-top: 1px solid #eee;
-  }
-
-  .metric {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-  }
-
-  .metric .label {
-    font-size: 12px;
-    color: #666;
-  }
-
-  .metric .value {
-    font-weight: bold;
-    color: #333;
-  }
-
-  @media (max-width: 768px) {
-    .nav-button {
-      padding: 6px 8px;
-      font-size: 12px;
-    }
-
-    .days {
-      gap: 2px;
-    }
-
-    .month {
-      font-size: 16px;
-    }
-
-    .trip-metrics {
-      gap: 8px;
-      margin-top: 4px;
-      padding-top: 4px;
-    }
-
-    .metric .label {
-      font-size: 10px;
-    }
-
-    .metric .value {
-      font-size: 12px;
-    }
   }
 </style>
