@@ -14,6 +14,7 @@
     const groupDate = new Date(group[0].unixTime * 1000);
     return isSameDay(groupDate, selectedDay);
   }) || []);
+  let tripMetrics = $derived(selectedMessages.length >= 2 ? calculateTripMetrics(selectedMessages) : null);
   let showDebugWindow = $state(false);
   let lastApiRequestTime: number | null = $state(null);
   let lastApiResponseStatus: number | null = $state(null);
@@ -78,49 +79,54 @@
     });
 
     let previousMessage: SpotMessage | undefined;
-    for (const [i, message] of messages.entries()) {
+    
+    // Group messages by hour and find the one closest to the hour mark, only considering messages in first 30 minutes
+    const messagesByHour = new Map<number, SpotMessage>();
+    messages.forEach(message => {
+      const date = new Date(message.unixTime * 1000);
+      const hour = date.getHours();
+      const minutes = date.getMinutes();
+      
+      // Only consider messages in the first 30 minutes of the hour
+      if (minutes >= 30) return;
+      
+      const existingMessage = messagesByHour.get(hour);
+      if (!existingMessage) {
+        messagesByHour.set(hour, message);
+      } else {
+        const existingDate = new Date(existingMessage.unixTime * 1000);
+        const existingMinutes = existingDate.getMinutes();
+        
+        if (minutes < existingMinutes) {
+          messagesByHour.set(hour, message);
+        }
+      }
+    });
+
+    const filteredMessages = messages.filter((message, index) => {
+      // Always include first and last messages
+      if (index === 0 || index === messages.length - 1) return true;
+      
+      // Include messages with non-empty content
+      if (message.messageContent) return true;
+      
+      // Include messages that are closest to their hour
+      const date = new Date(message.unixTime * 1000);
+      const hour = date.getHours();
+      return messagesByHour.get(hour) === message;
+    });
+
+    for (const [i, message] of filteredMessages.entries()) {
       const { latitude, longitude, messageContent, messageType, unixTime } = message;
       const marker = L.marker([latitude, longitude]);
       const formattedDate = formatUnitTime(unixTime);
-      let tooltip = undefined;
-      if (new URLSearchParams(window.location.search).get('debug') === 'true') {
-        tooltip = marker.bindTooltip(`${formattedDate}: ${messageContent}`, {
-          permanent: true,
-          interactive: true,
-          direction: 'top',
-          offset: [-15, 0],
-          className: 'marker-label',
-        });
-      } else if (messageType === 'CUSTOM') {
-        tooltip = marker.bindTooltip(`${formattedDate}: ${messageContent}`, {
-          permanent: true,
-          interactive: true,
-          direction: 'top',
-          offset: [-15, 0],
-          className: 'marker-label',
-        });
-      } else if (i === 0 || i === messages.length - 1) {
-        tooltip = marker.bindTooltip(`${formattedDate}`, {
-          permanent: true,
-          interactive: true,
-          direction: 'top',
-          offset: [-15, 0],
-          className: 'marker-label',
-        });
-      } else {
-        tooltip = marker.bindTooltip(`${formattedDate}`, {
-          permanent: true,
-          interactive: true,
-          direction: 'center',
-          offset: [0, 0],
-          className: 'marker-no-icon'
-        });
-        marker.setIcon(L.divIcon({
-          className: 'transparent-marker',
-          iconSize: [0, 0],
-          iconAnchor: [0, 0]
-        }));
-      }
+      const tooltip = marker.bindTooltip(`${formattedDate}${messageContent ? ': ' + messageContent : ''}`, {
+        permanent: true,
+        interactive: true,
+        direction: 'top',
+        offset: [-15, 0],
+        className: 'marker-label',
+      });
       marker.addTo(map);
       if (previousMessage) {
         L.polyline([[previousMessage.latitude, previousMessage.longitude], [latitude, longitude]]).addTo(map);
@@ -219,6 +225,54 @@
     return `${Math.floor(seconds / 86400)}d ago`;
   }
 
+  function calculateTripMetrics(messages: SpotMessage[]) {
+    if (messages.length < 2) return null;
+
+    const startTime = messages[0].unixTime;
+    const endTime = messages[messages.length - 1].unixTime;
+    const durationSeconds = endTime - startTime;
+    
+    let totalDistance = 0;
+    for (let i = 1; i < messages.length; i++) {
+      const prev = messages[i - 1];
+      const curr = messages[i];
+      // Calculate distance using Haversine formula
+      const R = 3959; // Earth's radius in miles
+      const lat1 = prev.latitude * Math.PI / 180;
+      const lat2 = curr.latitude * Math.PI / 180;
+      const dLat = (curr.latitude - prev.latitude) * Math.PI / 180;
+      const dLon = (curr.longitude - prev.longitude) * Math.PI / 180;
+      
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1) * Math.cos(lat2) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const distance = R * c;
+      
+      totalDistance += distance;
+    }
+
+    const durationHours = durationSeconds / 3600;
+    const mph = durationHours > 0 ? totalDistance / durationHours : 0;
+
+    return {
+      startTime,
+      endTime,
+      durationSeconds,
+      totalDistance,
+      mph
+    };
+  }
+
+  function formatDuration(seconds: number): string {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  }
+
   $effect(() => {
     if (selectedMessages.length > 0) {
       fitBoundsToMessages(selectedMessages);
@@ -312,6 +366,30 @@
     >
       <span class="icon">⏭</span>
     </button>
+  </div>
+  <div class="trip-metrics">
+    {#if tripMetrics}
+      <div class="metric">
+        <span class="label">Start</span>
+        <span class="value">{formatUnitTime(tripMetrics.startTime)}</span>
+      </div>
+      <div class="metric">
+        <span class="label">End</span>
+        <span class="value">{formatUnitTime(tripMetrics.endTime)}</span>
+      </div>
+      <div class="metric">
+        <span class="label">Duration</span>
+        <span class="value">{formatDuration(tripMetrics.durationSeconds)}</span>
+      </div>
+      <div class="metric">
+        <span class="label">Distance</span>
+        <span class="value">{tripMetrics.totalDistance.toFixed(1)} mi</span>
+      </div>
+      <div class="metric">
+        <span class="label">Avg Speed</span>
+        <span class="value">{tripMetrics.mph.toFixed(1)} mph</span>
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -522,5 +600,31 @@
 
   .value {
     color: #666;
+  }
+
+  .trip-metrics {
+    display: flex;
+    justify-content: space-evenly;
+    gap: 16px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #eee;
+  }
+
+  .metric {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .metric .label {
+    font-size: 12px;
+    color: #666;
+  }
+
+  .metric .value {
+    font-weight: bold;
+    color: #333;
   }
 </style>
