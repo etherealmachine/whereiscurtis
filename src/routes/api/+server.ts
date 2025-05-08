@@ -8,15 +8,12 @@ export async function GET(): Promise<Response> {
   let fromCache = false;
   
   if (lastApiRequestTime === null || lastApiRequestTime < Date.now() - 5 * 60 * 1000) {
-    console.log('Fetching latest messages');
-    messages = await latestSpotMessages();
-    console.log(`Storing ${messages.length} messages`);
-    await storeEvents(messages);
+    await storeEvents(await latestSpotMessages());
     ({ time: lastApiRequestTime, status: lastApiResponseStatus } = await getLastApiRequestInfo());
   } else {
-    messages = await getEvents();
     fromCache = true;
   }
+  messages = await getEvents();
   
   return new Response(JSON.stringify({
     messages,
