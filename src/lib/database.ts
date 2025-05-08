@@ -252,19 +252,22 @@ export async function getEvents(
       query += ' WHERE';
       if (startTime) {
         query += ' unix_time >= ?';
-        params.push(startTime);
+        params.push(startTime / 1000);
       }
       if (startTime && endTime) {
         query += ' AND';
       }
       if (endTime) {
         query += ' unix_time <= ?';
-        params.push(endTime);
+        params.push(endTime / 1000);
       }
     }
     
-    query += ' ORDER BY unix_time DESC LIMIT ?';
-    params.push(limit);
+    query += ' ORDER BY unix_time DESC';
+    if (limit > 0) {
+      query += ' LIMIT ?';
+      params.push(limit);
+    }
 
     db.all(query, params, (err: Error | null, rows: EventRow[]) => {
       if (err) reject(err);

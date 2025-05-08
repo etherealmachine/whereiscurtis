@@ -13,7 +13,9 @@ export async function GET(): Promise<Response> {
   } else {
     fromCache = true;
   }
-  messages = await getEvents();
+  const startTime = Date.parse('05/05/2025');
+  const endTime = Date.now();
+  messages = await getEvents(startTime, endTime, -1);
   
   return new Response(JSON.stringify({
     messages,
